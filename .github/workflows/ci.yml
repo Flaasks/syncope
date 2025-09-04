@@ -1,0 +1,81 @@
+name: Syncope CI (selected modules)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    env:
+      # Evita output Maven verboso e problemi con terminale
+      MAVEN_OPTS: "-XX:+TieredCompilation -XX:TieredStopAtLevel=1 -Xmx2g"
+      # Disabilita check opzionali che spesso bloccano build multi-modulo
+      SKIP_CHECKS: "-Dspotbugs.skip=true -Dcheckstyle.skip=true -Denforcer.skip=true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # (Opzionale) mostra la versione di Maven/Java
+      - name: Tool versions
+        run: |
+          mvn -v
+          java -version
+
+      # Importante: compiliamo SOLO i moduli con i tuoi test, più le loro dipendenze (-am)
+      # Usando i PERCORSI RELATIVI ai moduli definiti nel root POM (più robusto degli artifactId).
+      - name: Build (compile only needed modules)
+        run: |
+          mvn -B -ntp -q ${SKIP_CHECKS} \
+            -pl "core/idrepo/logic,core/spring" -am \
+            -DskipTests=true \
+            clean compile
+
+      # Eseguiamo i test JUnit (Surefire) solo per i moduli target
+      - name: Test (Surefire)
+        run: |
+          mvn -B -ntp ${SKIP_CHECKS} \
+            -pl "core/idrepo/logic,core/spring" -am \
+            -DskipITs=true -DskipITs -DfailIfNoTests=false \
+            test
+
+      # Genera report JaCoCo (se il progetto lo ha già configurato nei POM)
+      - name: Test coverage (JaCoCo if configured)
+        run: |
+          mvn -B -ntp ${SKIP_CHECKS} \
+            -pl "core/idrepo/logic,core/spring" -am \
+            -DskipITs=true -DskipITs -DfailIfNoTests=false \
+            jacoco:report || true
+
+      # Carica report Surefire (TEST-*.xml) e HTML JaCoCo, se presenti
+      - name: Upload Surefire reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: |
+            **/target/surefire-reports/*.xml
+            **/target/surefire-reports/*.txt
+            **/target/surefire-reports/*.dumpstream
+          if-no-files-found: warn
+
+      - name: Upload JaCoCo reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-reports
+          path: |
+            **/target/site/jacoco/*
+          if-no-files-found: warn
