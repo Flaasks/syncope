@@ -39,7 +39,7 @@ jobs:
       - name: Build (compile only needed modules)
         run: |
           mvn -B -ntp -q ${SKIP_CHECKS} \
-            -pl "core/idrepo/logic,core/spring" -am \
+            -pl "core/logic,core/spring" -am \
             -DskipTests=true \
             clean compile
 
@@ -47,7 +47,7 @@ jobs:
       - name: Test (Surefire)
         run: |
           mvn -B -ntp ${SKIP_CHECKS} \
-            -pl "core/idrepo/logic,core/spring" -am \
+            -pl "core/logic,core/spring" -am \
             -DskipITs=true -DskipITs -DfailIfNoTests=false \
             test
 
@@ -55,7 +55,7 @@ jobs:
       - name: Test coverage (JaCoCo if configured)
         run: |
           mvn -B -ntp ${SKIP_CHECKS} \
-            -pl "core/idrepo/logic,core/spring" -am \
+            -pl "core/logic,core/spring" -am \
             -DskipITs=true -DskipITs -DfailIfNoTests=false \
             jacoco:report || true
 
