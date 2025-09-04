@@ -138,10 +138,36 @@ under the License.
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <!-- JUnit 5 BOM per versioni allineate -->
+    <dependency>
+      <groupId>org.junit</groupId>
+      <artifactId>junit-bom</artifactId>
+      <version>5.10.2</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+
+
   </dependencies>
 
   <build>
     <plugins>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.3</version>
+        <configuration>
+          <!-- Evita problemi col module path su JDK 21 -->
+          <useModulePath>false</useModulePath>
+          <!-- Per vedere stacktrace completi in CI -->
+          <trimStackTrace>false</trimStackTrace>
+          <!-- Non fallire se (temporaneamente) non trova test -->
+          <failIfNoTests>false</failIfNoTests>
+          <!-- Pattern di default: *Test.java, *Tests.java, *TestCase.java -->
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.pitest</groupId>
         <artifactId>pitest-maven</artifactId>
