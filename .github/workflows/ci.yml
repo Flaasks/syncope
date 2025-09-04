@@ -1,20 +1,28 @@
-name: Syncope CI (selected modules)
+name: Flavio – Syncope CI (selected modules)
 
 on:
   push:
     branches: [ main, master ]
+    paths:
+      - 'syncope/**'
+      - '.github/workflows/flavio-syncope-ci.yml'
   pull_request:
     branches: [ main, master ]
+    paths:
+      - 'syncope/**'
   workflow_dispatch:
+
+# Tutti i comandi Maven girano dentro alla cartella syncope/
+defaults:
+  run:
+    working-directory: syncope
 
 jobs:
   build-test:
     runs-on: ubuntu-latest
-
     env:
-      # Evita output Maven verboso e problemi con terminale
-      MAVEN_OPTS: "-XX:+TieredCompilation -XX:TieredStopAtLevel=1 -Xmx2g"
-      # Disabilita check opzionali che spesso bloccano build multi-modulo
+      # Evita problemi JPMS con Java 21 + Surefire
+      MAVEN_ARGS: "-DtrimStackTrace=false -DfailIfNoTests=false -Dmaven.test.failure.ignore=false"
       SKIP_CHECKS: "-Dspotbugs.skip=true -Dcheckstyle.skip=true -Denforcer.skip=true"
 
     steps:
@@ -28,47 +36,45 @@ jobs:
           java-version: '21'
           cache: maven
 
-      # (Opzionale) mostra la versione di Maven/Java
       - name: Tool versions
         run: |
           mvn -v
           java -version
 
-      # Importante: compiliamo SOLO i moduli con i tuoi test, più le loro dipendenze (-am)
-      # Usando i PERCORSI RELATIVI ai moduli definiti nel root POM (più robusto degli artifactId).
+      # Compila SOLO i moduli dei tuoi test + le dipendenze necessarie
       - name: Build (compile only needed modules)
         run: |
           mvn -B -ntp -q ${SKIP_CHECKS} \
-            -pl "core/logic,core/spring" -am \
+            -pl "core/idrepo/logic,core/spring" -am \
             -DskipTests=true \
             clean compile
 
-      # Eseguiamo i test JUnit (Surefire) solo per i moduli target
+      # Test con Surefire (JUnit 5). Se l'engine non è trovato, qui lo vediamo chiaramente.
       - name: Test (Surefire)
         run: |
-          mvn -B -ntp ${SKIP_CHECKS} \
-            -pl "core/logic,core/spring" -am \
-            -DskipITs=true -DskipITs -DfailIfNoTests=false \
+          mvn -B -ntp ${SKIP_CHECKS} ${MAVEN_ARGS} \
+            -pl "core/idrepo/logic,core/spring" -am \
+            -DskipITs=true \
+            -Dsurefire.useModulePath=false \
+            -Dsurefire.trimStackTrace=false \
             test
 
-      # Genera report JaCoCo (se il progetto lo ha già configurato nei POM)
+      # Report JaCoCo se già configurato nei POM
       - name: Test coverage (JaCoCo if configured)
         run: |
-          mvn -B -ntp ${SKIP_CHECKS} \
-            -pl "core/logic,core/spring" -am \
-            -DskipITs=true -DskipITs -DfailIfNoTests=false \
+          mvn -B -ntp ${SKIP_CHECKS} ${MAVEN_ARGS} \
+            -pl "core/idrepo/logic,core/spring" -am \
+            -DskipITs=true \
             jacoco:report || true
 
-      # Carica report Surefire (TEST-*.xml) e HTML JaCoCo, se presenti
+      # Carica SEMPRE i report Surefire
       - name: Upload Surefire reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: surefire-reports
           path: |
-            **/target/surefire-reports/*.xml
-            **/target/surefire-reports/*.txt
-            **/target/surefire-reports/*.dumpstream
+            **/target/surefire-reports/*
           if-no-files-found: warn
 
       - name: Upload JaCoCo reports
