@@ -116,6 +116,30 @@ under the License.
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <!-- API di JUnit 5 -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>5.10.2</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Motore per eseguire i test -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <version>5.10.2</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Se usi le annotation tipo @ParameterizedTest -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <version>5.10.2</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -151,6 +175,43 @@ under the License.
     </testResources>
 
     <plugins>
+
+      <plugin>
+        <groupId>org.pitest</groupId>
+        <artifactId>pitest-maven</artifactId>
+        <version>1.16.1</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-junit5-plugin</artifactId>
+            <version>1.2.3</version>
+          </dependency>
+      </dependencies>
+        <configuration>
+
+          <targetClasses>
+            <param>org.apache.syncope.core.logic.SecurityQuestionLogic</param>
+          </targetClasses>
+          <targetTests>
+            <param>org.apache.syncope.core.logic.*</param>
+          </targetTests>
+
+          <mutators>
+            <mutator>STRONGER</mutator>
+          </mutators>
+
+          <threads>4</threads>
+          <timeoutConstant>8000</timeoutConstant>
+          <jvmArgs>-Xmx1g</jvmArgs>
+          <outputFormats>
+            <param>HTML</param>
+            <param>XML</param>
+          </outputFormats>
+          <timestampedReports>false</timestampedReports>
+          <failWhenNoMutations>false</failWhenNoMutations>
+          <mutationThreshold>0</mutationThreshold>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>

@@ -61,6 +61,25 @@ under the License.
               <generateReports>false</generateReports>
             </configuration>
           </plugin>
+          <!-- JaCoCo -->
+          <plugin>
+            <groupId>org.jacoco</groupId>
+            <artifactId>jacoco-maven-plugin</artifactId>
+            <version>0.8.10</version>
+            <executions>
+              <!-- attacca l'agent per misurare la coverage dei test -->
+              <execution>
+                <id>prepare-agent</id>
+                <goals><goal>prepare-agent</goal></goals>
+              </execution>
+              <!-- genera il report in verify -->
+              <execution>
+                <id>report</id>
+                <phase>verify</phase>
+                <goals><goal>report</goal></goals>
+              </execution>
+            </executions>
+          </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-antrun-plugin</artifactId>
@@ -71,10 +90,84 @@ under the License.
               </execution>
             </executions>
           </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>3.2.5</version>
+            <configuration>
+              <useModulePath>false</useModulePath>
+              <includes>
+                <include>**/*Test.java</include>
+                <include>**/*Tests.java</include>
+                <include>**/*TestCase.java</include>
+                <include>**/*PartitionTest.java</include>
+                <include>**/*LLMTest.java</include>
+                <include>**/*ControlFlowTest.java</include>
+              </includes>
+            </configuration>
+          </plugin>
+          <!-- Surefire 3.x per JUnit 5 -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>3.2.5</version>
+            <configuration>
+              <useModulePath>false</useModulePath>
+              <includes>
+                <include>**/*Test.java</include>
+                <include>**/*Tests.java</include>
+                <include>**/*TestCase.java</include>
+
+                <include>**/*PartitionTest.java</include>
+                <include>**/*LLMTest.java</include>
+                <include>**/*CFTest.java</include>
+              </includes>
+            </configuration>
+          </plugin>
+
+
         </plugins>
       </build>
     </profile>
   </profiles>
+
+  <dependencies>
+
+
+    <!-- Mockito JUnit Jupiter extension (per @ExtendWith(MockitoExtension.class)) -->
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
+      <version>5.11.0</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- (Opzionale) mockito-inline, utile per mockare classi final o metodi statici -->
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-inline</artifactId>
+      <version>5.2.0</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- JUnit 5 -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.2</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Mockito -->
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>5.11.0</version>
+      <scope>test</scope>
+    </dependency>
+
+
+  </dependencies>
   
   <modules>
     <module>idrepo</module>
