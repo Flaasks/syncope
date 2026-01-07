@@ -2411,8 +2411,10 @@ under the License.
     <module>core</module>
     <module>client</module>
     <module>sra</module>
-    <module>wa</module>
-    <module>fit</module>
+    <!-- Escluso: dipende da org.apereo.cas:cas-server-support-bom:7.3.0-SNAPSHOT non disponibile -->
+    <!-- <module>wa</module> -->
+    <!-- Escluso: dipende da wa che è escluso -->
+    <!-- <module>fit</module> -->
     <module>ext</module>
     <module>archetype</module>
     <module>standalone</module>

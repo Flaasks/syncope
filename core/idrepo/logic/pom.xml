@@ -35,7 +35,22 @@ under the License.
   
   <properties>
     <rootpom.basedir>${basedir}/../../..</rootpom.basedir>
+    <!-- Skip ITs by default; enable with -DskipITs=false -->
+    <skipITs>true</skipITs>
   </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <!-- JUnit 5 BOM per versioni allineate -->
+      <dependency>
+        <groupId>org.junit</groupId>
+        <artifactId>junit-bom</artifactId>
+        <version>5.10.2</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <dependency>
@@ -141,15 +156,6 @@ under the License.
       <scope>test</scope>
     </dependency>
 
-    <!-- JUnit 5 BOM per versioni allineate -->
-    <dependency>
-      <groupId>org.junit</groupId>
-      <artifactId>junit-bom</artifactId>
-      <version>5.10.2</version>
-      <type>pom</type>
-      <scope>import</scope>
-    </dependency>
-
 
     <!-- Mockito per JUnit 5 -->
     <dependency>
@@ -202,6 +208,27 @@ under the License.
     </testResources>
 
     <plugins>
+      <!-- Code coverage for unit and integration tests -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.11</version>
+        <executions>
+          <execution>
+            <id>prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
 
       <plugin>
         <groupId>org.pitest</groupId>
@@ -213,20 +240,17 @@ under the License.
             <artifactId>pitest-junit5-plugin</artifactId>
             <version>1.2.3</version>
           </dependency>
-      </dependencies>
+        </dependencies>
         <configuration>
-
           <targetClasses>
             <param>org.apache.syncope.core.logic.SecurityQuestionLogic</param>
           </targetClasses>
           <targetTests>
             <param>org.apache.syncope.core.logic.*</param>
           </targetTests>
-
           <mutators>
             <mutator>STRONGER</mutator>
           </mutators>
-
           <threads>4</threads>
           <timeoutConstant>8000</timeoutConstant>
           <jvmArgs>-Xmx1g</jvmArgs>
@@ -242,6 +266,7 @@ under the License.
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.3</version>
         <configuration>
           <systemPropertyVariables>
             <syncope.conf.dir>${project.build.directory}/test-classes</syncope.conf.dir>
@@ -256,6 +281,25 @@ under the License.
           <failIfNoTests>false</failIfNoTests>
           <!-- Pattern di default: *Test.java, *Tests.java, *TestCase.java -->
         </configuration>
+      </plugin>
+
+      <!-- Failsafe for integration tests (disabled by default) -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>3.5.3</version>
+        <configuration>
+          <useModulePath>false</useModulePath>
+          <skipITs>${skipITs}</skipITs>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
       
       <plugin>
