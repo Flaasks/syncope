@@ -36,7 +36,7 @@ under the License.
   <properties>
     <rootpom.basedir>${basedir}/../..</rootpom.basedir>
     <!-- Skip ITs by default; enable with -DskipITs=false -->
-    <skipITs>true</skipITs>
+    <skipITs>false</skipITs>
   </properties>
 
   <dependencyManagement>

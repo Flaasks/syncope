@@ -38,11 +38,11 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-@DisplayName("SecurityQuestionLogic - Category Partition (semplice)")
+@DisplayName("SecurityQuestionLogic - Category Partition")
 class SecurityQuestionLogicCategoryPartitionTest {
 
     @Mock private SecurityQuestionDAO securityQuestionDAO;
-    @Mock private UserDAO userDAO; // non usato qui, ma richiesto dal costruttore
+    @Mock private UserDAO userDAO; 
     @Mock private SecurityQuestionDataBinder binder;
 
     private SecurityQuestionLogic logic;
@@ -62,7 +62,6 @@ class SecurityQuestionLogicCategoryPartitionTest {
         SecurityQuestion q1 = mock(SecurityQuestion.class);
         SecurityQuestion q2 = mock(SecurityQuestion.class);
 
-        // niente thenReturn(List.of(...)): usiamo una ArrayList di backing
         List<SecurityQuestion> backing = new ArrayList<>();
         backing.add(q1);
         backing.add(q2);
@@ -126,5 +125,85 @@ class SecurityQuestionLogicCategoryPartitionTest {
         assertThrows(NotFoundException.class, () -> logic.read("missing"));
         verify(securityQuestionDAO, times(1)).findById("missing");
         verifyNoInteractions(binder);
+    }
+
+
+
+    @Test
+    @DisplayName("create: TO valido → crea entity e ritorna TO")
+    void create_valid() {
+        SecurityQuestionTO inputTO = new SecurityQuestionTO();
+        inputTO.setContent("What is your favorite color?");
+
+        SecurityQuestion entity = mock(SecurityQuestion.class);
+        SecurityQuestion savedEntity = mock(SecurityQuestion.class);
+        SecurityQuestionTO outputTO = new SecurityQuestionTO();
+        outputTO.setKey("newKey");
+        outputTO.setContent("What is your favorite color?");
+
+        when(binder.create(inputTO)).thenReturn(entity);
+        when(securityQuestionDAO.save(entity)).thenReturn(savedEntity);
+        when(binder.getSecurityQuestionTO(savedEntity)).thenReturn(outputTO);
+
+        SecurityQuestionTO result = logic.create(inputTO);
+
+        assertNotNull(result);
+        assertEquals("newKey", result.getKey());
+        assertEquals("What is your favorite color?", result.getContent());
+        verify(binder, times(1)).create(inputTO);
+        verify(securityQuestionDAO, times(1)).save(entity);
+        verify(binder, times(1)).getSecurityQuestionTO(savedEntity);
+    }
+
+    @Test
+    @DisplayName("update: entity esistente → aggiorna e ritorna TO")
+    void update_existing() {
+        SecurityQuestionTO inputTO = new SecurityQuestionTO();
+        inputTO.setKey("existingKey");
+        inputTO.setContent("Updated question?");
+
+        SecurityQuestion entity = mock(SecurityQuestion.class);
+        SecurityQuestion updatedEntity = mock(SecurityQuestion.class);
+        SecurityQuestionTO outputTO = new SecurityQuestionTO();
+        outputTO.setKey("existingKey");
+        outputTO.setContent("Updated question?");
+
+        doReturn(Optional.of(entity)).when(securityQuestionDAO).findById("existingKey");
+        doNothing().when(binder).update(entity, inputTO);
+        when(securityQuestionDAO.save(entity)).thenReturn(updatedEntity);
+        when(binder.getSecurityQuestionTO(updatedEntity)).thenReturn(outputTO);
+
+        SecurityQuestionTO result = logic.update(inputTO);
+
+        assertNotNull(result);
+        assertEquals("existingKey", result.getKey());
+        assertEquals("Updated question?", result.getContent());
+        verify(securityQuestionDAO, times(1)).findById("existingKey");
+        verify(binder, times(1)).update(entity, inputTO);
+        verify(securityQuestionDAO, times(1)).save(entity);
+        verify(binder, times(1)).getSecurityQuestionTO(updatedEntity);
+    }
+
+    @Test
+    @DisplayName("delete: entity esistente → elimina e ritorna TO")
+    void delete_existing() {
+        String key = "toDelete";
+        SecurityQuestion entity = mock(SecurityQuestion.class);
+        SecurityQuestionTO outputTO = new SecurityQuestionTO();
+        outputTO.setKey(key);
+        outputTO.setContent("Question to delete");
+
+        doReturn(Optional.of(entity)).when(securityQuestionDAO).findById(key);
+        when(binder.getSecurityQuestionTO(entity)).thenReturn(outputTO);
+        doNothing().when(securityQuestionDAO).deleteById(key);
+
+        SecurityQuestionTO result = logic.delete(key);
+
+        assertNotNull(result);
+        assertEquals(key, result.getKey());
+        assertEquals("Question to delete", result.getContent());
+        verify(securityQuestionDAO, times(1)).findById(key);
+        verify(binder, times(1)).getSecurityQuestionTO(entity);
+        verify(securityQuestionDAO, times(1)).deleteById(key);
     }
 }

@@ -167,7 +167,7 @@ class DefaultPasswordGeneratorCategoryPartitionTest {
     }
 
     @Test
-    @DisplayName("Richiede simboli → presente almeno il numero richiesto (se configurabili)")
+    @DisplayName("Richiede simboli → presente almeno il numero richiesto")
     void requiresSymbolsIfSupported() {
         DefaultPasswordGenerator gen = new DefaultPasswordGenerator();
         DefaultPasswordRuleConf conf = new DefaultPasswordRuleConf();

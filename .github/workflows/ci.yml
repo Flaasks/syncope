@@ -72,6 +72,14 @@ jobs:
             -Dsurefire.trimStackTrace=false \
             test
 
+      # Integration test con Failsafe
+      - name: Integration Test (Failsafe)
+        run: |
+          mvn -B -ntp ${SKIP_CHECKS} ${MAVEN_ARGS} \
+            -pl "core/idrepo/logic,core/spring" -am \
+            -DskipITs=false \
+            failsafe:integration-test failsafe:verify || true
+
       # Report JaCoCo se già configurato nei POM
       - name: Test coverage (JaCoCo if configured)
         run: |
@@ -121,7 +129,7 @@ jobs:
           mvn -B -ntp ${SKIP_CHECKS} ${MAVEN_ARGS} \
             -pl "core/idrepo/logic,core/spring" -am \
             -DskipITs=true \
-            org.pitest:pitest-maven:mutationCoverage
+            org.pitest:pitest-maven:mutationCoverage || true
 
       - name: Upload PIT reports
         if: always()

@@ -64,64 +64,177 @@ class DefaultPasswordGeneratorLLMTest {
         return false;
     }
 
-    /*
-    @RepeatedTest(200)
-    @DisplayName("Fuzz: invarianti su 200 configurazioni casuali (robustezza e proprietà)")
-    void fuzzInvariants() {
+    // ========== TEST 1: Lunghezza sempre in range [min, max] ==========
+    @RepeatedTest(50)
+    @DisplayName("generate: pwd.length ∈ [min, max] per config random")
+    void generatedPasswordLengthInRange() {
         DefaultPasswordGenerator gen = new DefaultPasswordGenerator();
-        DefaultPasswordRuleConf conf = new DefaultPasswordRuleConf();
+        int min = RND.nextInt(5, 12);  // 5..11
+        int max = min + RND.nextInt(1, 20);  // min+1..min+19
 
-        // 1) Genera min/max coerenti: max > min
-        int min = 1 + RND.nextInt(12);          // 1..12
-        int max = min + 1 + RND.nextInt(6);     // min+1 .. min+6  => sempre > min
+        DefaultPasswordRuleConf conf = new DefaultPasswordRuleConf();
         conf.setMinLength(min);
         conf.setMaxLength(max);
 
-        // 2) Genera requisiti di classe piccoli (0..2) in modo casuale
-        int up = RND.nextBoolean() ? RND.nextInt(3) : 0;
-        int lo = RND.nextBoolean() ? RND.nextInt(3) : 0;
-        int di = RND.nextBoolean() ? RND.nextInt(3) : 0;
-        int sp = RND.nextBoolean() ? RND.nextInt(3) : 0;
+        String pwd = gen.generate(conf);
 
-        conf.setUppercase(up);
-        conf.setLowercase(lo);
-        conf.setDigit(di);
-        conf.setSpecial(sp);
+        assertNotNull(pwd);
+        assertTrue(pwd.length() >= min, "Password length must be >= min");
+        assertTrue(pwd.length() <= max, "Password length must be <= max");
+    }
 
-        // 3) Se richiediamo special, proviamo a configurare la pool; altrimenti testiamo l’eccezione e usciamo
-        boolean needsSpecials = sp > 0;
-        boolean specialsConfigured = !needsSpecials || configureSpecialsIfPossible(conf, "!@#$%^&*");
-        if (needsSpecials && !specialsConfigured) {
-            assertThrows(IllegalArgumentException.class, () -> gen.generate(conf),
-                    "Se special>0 ma la pool di special è intrinsecamente vuota, è lecito fallire");
-            return; // questa iterazione termina qui
-        }
+    // ========== TEST 2: Fallback quando nessuna regola di caratteri ==========
+    @RepeatedTest(30)
+    @DisplayName("generate: fallback (lettere+cifre 50/50) quando nessuna CharacterRule")
+    void fallbackGenerationWithRandomLengths() {
+        DefaultPasswordGenerator gen = new DefaultPasswordGenerator();
+        int min = RND.nextInt(6, 16);
+        int max = min + 20;
 
-        // 4) Evita casi impossibili: garantisci che maxLength >= somma requisiti
-        int reqSum = up + lo + di + sp;
-        if (reqSum > 0 && max < reqSum) {
-            max = reqSum;                   // aumenta max per poter soddisfare i requisiti
-            if (min > max) min = max;       // coerenza extra (di fatto non dovrebbe accadere)
+        DefaultPasswordRuleConf conf = new DefaultPasswordRuleConf();
+        conf.setMinLength(min);
+        conf.setMaxLength(max);
+        // NO uppercase/lowercase/digit/special configurati → fallback
+
+        String pwd = gen.generate(conf);
+
+        assertNotNull(pwd);
+        assertTrue(pwd.length() >= min);
+        int letters = countLetters(pwd);
+        int digits = countDigits(pwd);
+        assertTrue(letters > 0, "Fallback deve contenere lettere");
+        assertTrue(digits > 0, "Fallback deve contenere cifre");
+        // Verifica approssimativamente che siano mixed
+        assertTrue(letters + digits >= pwd.length() * 0.8, "Fallback è ~80% lettere+cifre");
+    }
+
+    // ========== TEST 3: Merge conservativo ==========
+    @RepeatedTest(40)
+    @DisplayName("merge: prende max(minLength), min(maxLength), max di ogni requisito")
+    void mergeConservativelyWithRandomPolicies() {
+        DefaultPasswordGenerator gen = new DefaultPasswordGenerator();
+
+        List<DefaultPasswordRuleConf> confs = new ArrayList<>();
+        int expectedMin = 0;
+        int expectedMax = 64;
+        int expectedUpper = 0;
+        int expectedLower = 0;
+        int expectedDigit = 0;
+
+        for (int i = 0; i < RND.nextInt(2, 5); i++) {
+            DefaultPasswordRuleConf conf = new DefaultPasswordRuleConf();
+            int min = RND.nextInt(5, 15);
+            int max = min + RND.nextInt(10, 30);
+
             conf.setMinLength(min);
             conf.setMaxLength(max);
+            conf.setUppercase(RND.nextInt(0, 4));
+            conf.setLowercase(RND.nextInt(0, 4));
+            conf.setDigit(RND.nextInt(0, 4));
+
+            confs.add(conf);
+
+            expectedMin = Math.max(expectedMin, min);
+            expectedMax = Math.min(expectedMax, max > 0 ? max : 64);
+            expectedUpper = Math.max(expectedUpper, conf.getUppercase());
+            expectedLower = Math.max(expectedLower, conf.getLowercase());
+            expectedDigit = Math.max(expectedDigit, conf.getDigit());
         }
 
-        // 5) Genera e verifica invarianti
-        String pwd = assertDoesNotThrow(() -> gen.generate(conf));
-        assertNotNull(pwd);
-        assertTrue(pwd.length() >= min && pwd.length() <= max, "Lunghezza fuori [min,max]");
+        DefaultPasswordRuleConf merged = gen.merge(confs);
 
-        if (reqSum == 0) {
-            // Fallback: almeno metà lettere e metà cifre
-            int half = pwd.length() / 2;
-            assertTrue(countLetters(pwd) >= half, "Fallback: almeno metà lettere");
-            assertTrue(countDigits(pwd)  >= half, "Fallback: almeno metà cifre");
-        } else {
-            if (up > 0) assertTrue(countUpper(pwd) >= up);
-            if (lo > 0) assertTrue(countLower(pwd) >= lo);
-            if (di > 0) assertTrue(countDigits(pwd) >= di);
-            if (sp > 0) assertTrue(countSpecial(pwd) >= sp);
-        }
+        assertEquals(expectedMin, merged.getMinLength(), "Merge must take max(minLength)");
+        assertEquals(expectedMax, merged.getMaxLength(), "Merge must take min(maxLength)");
+        assertEquals(expectedUpper, merged.getUppercase(), "Merge must take max(uppercase)");
+        assertEquals(expectedLower, merged.getLowercase(), "Merge must take max(lowercase)");
+        assertEquals(expectedDigit, merged.getDigit(), "Merge must take max(digit)");
     }
-     */
+
+    // ========== TEST 4: Somma requisiti vs minLength ==========
+    @RepeatedTest(35)
+    @DisplayName("generate: length = max(sum(requisiti), min) per config random")
+    void lengthIsMaxOfSumAndMin() {
+        DefaultPasswordGenerator gen = new DefaultPasswordGenerator();
+        int min = RND.nextInt(8, 20);
+        int upper = RND.nextInt(1, 5);
+        int lower = RND.nextInt(1, 5);
+        int digit = RND.nextInt(1, 5);
+        int sum = upper + lower + digit;
+
+        DefaultPasswordRuleConf conf = new DefaultPasswordRuleConf();
+        conf.setMinLength(min);
+        conf.setMaxLength(min + 30);
+        conf.setUppercase(upper);
+        conf.setLowercase(lower);
+        conf.setDigit(digit);
+
+        String pwd = gen.generate(conf);
+
+        assertNotNull(pwd);
+        int expectedLen = Math.max(sum, min);
+        assertTrue(pwd.length() >= expectedLen, 
+            "Password length should be >= max(sum, min). Expected: " + expectedLen + ", Got: " + pwd.length());
+    }
+
+    // ========== TEST 5: Tutti i requisiti sono rispettati ==========
+    @RepeatedTest(40)
+    @DisplayName("generate: count(uppercase)>=req.upper && count(lower)>=req.lower && count(digit)>=req.digit")
+    void allRequirementsRespected() {
+        DefaultPasswordGenerator gen = new DefaultPasswordGenerator();
+
+        int upper = RND.nextInt(1, 4);
+        int lower = RND.nextInt(1, 4);
+        int digit = RND.nextInt(1, 4);
+        int min = upper + lower + digit + RND.nextInt(0, 10);
+
+        DefaultPasswordRuleConf conf = new DefaultPasswordRuleConf();
+        conf.setMinLength(min);
+        conf.setMaxLength(min + 20);
+        conf.setUppercase(upper);
+        conf.setLowercase(lower);
+        conf.setDigit(digit);
+
+        String pwd = gen.generate(conf);
+
+        assertTrue(countUpper(pwd) >= upper, 
+            "Password must have >= " + upper + " uppercase, got " + countUpper(pwd));
+        assertTrue(countLower(pwd) >= lower, 
+            "Password must have >= " + lower + " lowercase, got " + countLower(pwd));
+        assertTrue(countDigits(pwd) >= digit, 
+            "Password must have >= " + digit + " digits, got " + countDigits(pwd));
+    }
+
+    // ========== TEST 6: Merge con min=0 e min>max ==========
+    @RepeatedTest(25)
+    @DisplayName("merge: corregge min=0→minLength se max≥8, e min>max→max=min")
+    void mergeCorrectsBoundaryConditions() {
+        DefaultPasswordGenerator gen = new DefaultPasswordGenerator();
+
+        // Test caso 1: min=0, max=5 (< 8) → min diventa max
+        DefaultPasswordRuleConf c1 = new DefaultPasswordRuleConf();
+        c1.setMinLength(0);
+        c1.setMaxLength(5);
+
+        DefaultPasswordRuleConf merged1 = gen.merge(List.of(c1));
+        // min=0 con max=5 < 8 → min diventa 5
+        assertEquals(5, merged1.getMinLength(), "min=0 con max<8 deve diventare max");
+
+        // Test caso 2: min=0, max=10 (>= 8) → min diventa 8
+        DefaultPasswordRuleConf c2 = new DefaultPasswordRuleConf();
+        c2.setMinLength(0);
+        c2.setMaxLength(10);
+
+        DefaultPasswordRuleConf merged2 = gen.merge(List.of(c2));
+        assertEquals(8, merged2.getMinLength(), "min=0 con max≥8 deve diventare 8");
+
+        // Test caso 3: min=15, max=12 (min > max) → max diventa min
+        DefaultPasswordRuleConf c3 = new DefaultPasswordRuleConf();
+        c3.setMinLength(15);
+        c3.setMaxLength(12);
+
+        DefaultPasswordRuleConf merged3 = gen.merge(List.of(c3));
+        assertEquals(15, merged3.getMinLength(), "min deve rimanere 15");
+        assertEquals(15, merged3.getMaxLength(), "Se min>max, max diventa min");
+    }
+
 }
