@@ -1,2 +1,0 @@
-org.apache.syncope.core.logic.SecurityQuestionLogic
-org.apache.syncope.core.spring.security.DefaultPasswordGenerator
