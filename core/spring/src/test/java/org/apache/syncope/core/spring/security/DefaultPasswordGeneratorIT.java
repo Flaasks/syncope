@@ -34,7 +34,6 @@ class DefaultPasswordGeneratorIT {
     private static int countUpper(String s) { int c=0; for (char ch: s.toCharArray()) if (Character.isUpperCase(ch)) c++; return c; }
     private static int countLower(String s) { int c=0; for (char ch: s.toCharArray()) if (Character.isLowerCase(ch)) c++; return c; }
     private static int countDigits(String s) { int c=0; for (char ch: s.toCharArray()) if (Character.isDigit(ch)) c++; return c; }
-    private static int countSpecial(String s) { int c=0; for (char ch: s.toCharArray()) if (!Character.isLetterOrDigit(ch)) c++; return c; }
 
     @Test
     @DisplayName("IT 1: Pipeline completo di generazione con merge di più politiche")
